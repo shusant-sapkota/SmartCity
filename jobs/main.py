@@ -1,4 +1,6 @@
 import os
+import time
+
 from confluent_kafka import SerializingProducer
 from datetime import datetime
 import simplejson as json
@@ -54,7 +56,7 @@ def generate_weather_data(device_id, timestamp, location):
     return {
         'id': uuid.uuid4(),
         'deviceId': device_id,
-        timestamp: timestamp,
+        'timestamp': timestamp,
         'location': location,
         'temperature': random.uniform(-5,26),
         'weatherCondition': random.choice(['Sunny', 'Cloudy', 'Rain', 'Snow']),
@@ -121,6 +123,7 @@ def produce_data_to_kafka(producer, topic, data):
         value = json.dumps(data, default=json_serializer).encode('utf-8'),
         on_delivery = delivery_report
     )
+    producer.flush()
 
 def simulate_journey(producer, device_id):
     while True:
@@ -134,12 +137,17 @@ def simulate_journey(producer, device_id):
         # print(traffic_camera_data)
         # print(weather_data)
         # print(emergency_incident_data)
+        if (vehicle_data['location'][0]>= BIRMINGHAM_COORDINATES['latitude'] and vehicle_data['location'][1]<=BIRMINGHAM_COORDINATES['longitude']):
+            print('Vehicle has already reached to Birmingham. Ending this Simulation')
+            break
+
         produce_data_to_kafka(producer, VEHICLE_TOPIC, vehicle_data)
         produce_data_to_kafka(producer, GPS_TOPIC,gps_data)
         produce_data_to_kafka(producer, TRAFFIC_TOPIC, traffic_camera_data)
         produce_data_to_kafka(producer, WEATHER_TOPIC, weather_data)
         produce_data_to_kafka(producer, EMERGENCY_TOPIC, emergency_incident_data)
-        break
+
+        time.sleep(5)
 
 if __name__ == "__main__":
     producer_config = {
