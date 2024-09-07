@@ -3,10 +3,11 @@ from pyspark.sql.types import StructField, StructType, StringType, TimestampType
 from pyspark.sql.functions import from_json, col
 from config import configuration
 
+#spark-sql-kafka-0-10_2.13:3.5.2
 def main():
     spark = SparkSession.builder.appName("SmartCityStreaming")\
     .config("spark.jars.packages",
-            "org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.2,"
+            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.0,"
             "org.apache.hadoop:hadoop-aws:3.3.1,"
             "com.amazonaws:aws-java-sdk:1.11.469")\
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")\
@@ -79,17 +80,33 @@ def main():
     ])
 
     def read_kafka_topic(topic, schema):
-        return(spark.readStream
-               .format('kafka')
-               .option('kafka.bootstrap.servers', 'broker: 29092')
-               .option('subscribe', topic)
-               .option('startingOffsets', 'earliest')
-               .load()
-               .selectExpr('CAST(value AS STRING)')
-               .select(from_json(col('value'), schema).alias('data'))
-               .select('data.*')
-               .withWatermark('timestamp', '2 minutes')
-               )
+        # Read stream from Kafka
+        kafka_stream = spark.readStream \
+            .format('kafka') \
+            .option('kafka.bootstrap.servers', 'broker:29092') \
+            .option('subscribe', topic) \
+            .option('startingOffsets', 'earliest').load()
+        # Process the stream
+        processed_stream = kafka_stream \
+            .selectExpr("CAST(value AS STRING)") \
+            .select(from_json(col("value"), schema).alias("data")) \
+            .select("data.*") \
+            .withWatermark("timestamp", "2 minutes")
+        return processed_stream
+
+
+        # return(spark.readStream
+        #        .format('kafka')\
+        #        .option('kafka.bootstrap.servers', 'broker: 29092')\
+        #        .option('subscribe', topic)\
+        #        .option('startingOffsets', 'earliest') \
+        #        .load()\
+        #        .selectExpr("CAST(value AS STRING)")\
+        #        .select(from_json(col('value'), schema).alias('data'))\
+        #        .select('data.*')\
+        #        .withWatermark('timestamp', '2 minutes')
+        #        )
+
 
     vehicleDF = read_kafka_topic('vehicle_data', vehicleSchema).alias('vehicle')
     gpsDF = read_kafka_topic('gps_data', gpsSchema).alias('gps')
@@ -97,7 +114,7 @@ def main():
     weatherDF = read_kafka_topic('weather_data', weatherSchema).alias('weather')
     emergencyDF = read_kafka_topic('emergency_data', emergencySchema).alias('emergency')
 
-    def streamWriter(DataFrame, checkpointFolder, output):
+    def streamWriter(input: DataFrame, checkpointFolder, output):
         return(input.writeStream
                .format('parquet')
                .option('checkpointLocation', checkpointFolder)
