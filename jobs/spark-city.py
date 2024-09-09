@@ -130,9 +130,17 @@ def main():
                  's3a://ss-spark-streaming-data/data/traffic_data')
     query4 = streamWriter(weatherDF, 's3a://ss-spark-streaming-data/checkpoints/weather_data',
                  's3a://ss-spark-streaming-data/data/weather_data')
-    query5 = streamWriter(emergencyDF, 's3a://ss-spark-streaming-data/checkpoints/emergency_data',
-                 's3a://ss-spark-streaming-data/data/emergency_data')
+    query5 = streamWriter(emergencyDF, 's3a://ss-spark-streaming-data/checkpoints/emergency_data', 's3a://ss-spark-streaming-data/data/emergency_data')
     query5.awaitTermination()
+
+    # Await termination
+    try:
+        query5.awaitTermination()
+    except StreamingQueryException as e:
+        print(f"Streaming failed: {e}")
+    finally:
+        query5.stop()
+        spark.stop()
 
 if __name__=="__main__":
     main()
