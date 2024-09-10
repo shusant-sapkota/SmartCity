@@ -12,10 +12,12 @@ def main():
             "com.amazonaws:aws-java-sdk:1.11.469")\
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")\
     .config("spark.hadoop.fs.s3a.access.key", configuration.get('AWS_ACCESS_KEY'))\
-    .config("spark.hadoop.fs.s3a.secret.key", configuration.get('AWS_SECRET_KEY'))\
-    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")\
+    .config("spark.hadoop.fs.s3a.secret.key", configuration.get('AWS_SECRET_KEY')) \
+    .config("spark.hadoop.fs.s3a.session.token", configuration.get('AWS_SECRET_TOKEN')) \
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider")\
     .getOrCreate()
 
+    # if you use permanent aws credentials, use: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider instead of TemporaryAWSCredentialsProvider
     # Adjust log level to minimize the console output on executors
     spark.sparkContext.setLogLevel('WARN')
 
