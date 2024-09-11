@@ -96,20 +96,7 @@ def main():
             .withWatermark("timestamp", "2 minutes")
         return processed_stream
 
-
-        # return(spark.readStream
-        #        .format('kafka')\
-        #        .option('kafka.bootstrap.servers', 'broker: 29092')\
-        #        .option('subscribe', topic)\
-        #        .option('startingOffsets', 'earliest') \
-        #        .load()\
-        #        .selectExpr("CAST(value AS STRING)")\
-        #        .select(from_json(col('value'), schema).alias('data'))\
-        #        .select('data.*')\
-        #        .withWatermark('timestamp', '2 minutes')
-        #        )
-
-
+    # Streaming Dataframe
     vehicleDF = read_kafka_topic('vehicle_data', vehicleSchema).alias('vehicle')
     gpsDF = read_kafka_topic('gps_data', gpsSchema).alias('gps')
     trafficDF = read_kafka_topic('traffic_data', trafficSchema).alias('traffic')
@@ -124,6 +111,7 @@ def main():
                .outputMode('append')
                .start())
 
+    # Streaming Queries
     query1 = streamWriter(vehicleDF, 's3a://ss-spark-streaming-data/checkpoints/vehicle_data',
                  's3a://ss-spark-streaming-data/data/vehicle_data')
     query2 = streamWriter(gpsDF, 's3a://ss-spark-streaming-data/checkpoints/gps_data',
@@ -133,16 +121,17 @@ def main():
     query4 = streamWriter(weatherDF, 's3a://ss-spark-streaming-data/checkpoints/weather_data',
                  's3a://ss-spark-streaming-data/data/weather_data')
     query5 = streamWriter(emergencyDF, 's3a://ss-spark-streaming-data/checkpoints/emergency_data', 's3a://ss-spark-streaming-data/data/emergency_data')
-    query5.awaitTermination()
+    #query5.awaitTermination()
 
-    # Await termination
+    # Keep the streaming query running with a timeout
     try:
-        query5.awaitTermination()
+        query5.awaitTermination(20000)
     except StreamingQueryException as e:
-        print(f"Streaming failed: {e}")
+        print(f"Streaming Failed with Error: {e}")
     finally:
         query5.stop()
         spark.stop()
+    print("Data Streaming has been completed successfully")
 
 if __name__=="__main__":
     main()
